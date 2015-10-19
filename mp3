@@ -8,3 +8,4 @@ set -e
 process-scrobble-log
 playlists-to-mp3
 lyrics-to-mp3
+mp3-music
