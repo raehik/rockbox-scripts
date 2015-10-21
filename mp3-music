@@ -89,5 +89,5 @@ done
 
 
 mount_device
-rsync -av --update --existing "$music_from" "$mount/$music_to"
+rsync -av --modify-window=1 "$music_from" "$mount/$music_to"
 unmount_device
