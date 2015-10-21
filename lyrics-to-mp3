@@ -84,7 +84,7 @@ for file in $tmp_dir/*; do
 done
 
 rm -rf "$mount/$lyrics_to"/*
-cp -R "$tmp_dir"/* "$mount/$lyrics_to"
+rsync -av --modify-window=1 "$tmp_dir"/* "$mount/$lyrics_to"
 
 unmount_device
 
