@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Install my Rockbox scripts.
+#
+
+install_dir="$HOME/bin"
+from_dir="${PWD}"
+
+for script in *; do
+    case "$script" in
+        "${0##*/}") continue ;;
+        "LICENSE") continue ;;
+    esac
+
+    ln -s "$from_dir/$script" "$install_dir"
+done
