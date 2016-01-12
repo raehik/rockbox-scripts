@@ -6,7 +6,7 @@
 device="/dev/disk/by-uuid/2FB2-3CE7"
 mount="/mnt/mp3-sd"
 
-lyrics_from="$HOME/.mpd/lyrics"
+lyrics_from="$HOME/.config/mpd/lyrics"
 lyrics_to="lyrics"
 
 usage() {

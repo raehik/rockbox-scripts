@@ -6,7 +6,7 @@
 device="/dev/disk/by-uuid/2FB2-3CE7"
 mount="/mnt/mp3-sd"
 
-playlists_from="$HOME/.mpd/playlists"
+playlists_from="$HOME/.config/mpd/playlists"
 playlists_to="playlists"
 
 usage() {
