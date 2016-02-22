@@ -14,7 +14,7 @@ LOG_PRE="$FILENAME"
 device="/dev/disk/by-uuid/2FB2-3CE7"
 mount="/mnt/mp3-sd"
 
-music_from="$HOME/music"
+music_from="$HOME/media/music"
 music_to=""
 
 # Print usage and exit depending on given exit code.
