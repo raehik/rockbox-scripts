@@ -6,123 +6,152 @@
 #       listened to (L). It does not record skipped (S) songs.
 #
 
-logfile=".scrobbler.log"
-
 device="/dev/disk/by-uuid/D057-2F0C"
-mount="/mnt/mp3"
-tmp_dir="/tmp"
+mount_dir="/mnt/mp3"
+archive_filename="$HOME/media/music-etc/mp3-scrobbles/$(date +%F-%T)-scrobbler-log.txt"
+log_name=".scrobbler.log"
 
+ERR_ARGS=1
+ERR_DEVICE=2
+ERR_SCROBBLER=3
+
+STDOUT="1"
+STDERR="2"
+FILENAME="${0##*/}"
+LOGGER="echo"
+LOG_PRE="$FILENAME"
+
+# verbosity on by default
+VERBOSE=1
+
+# Print usage and exit depending on given exit code.
 usage() {
-    cat <<EOF
-Usage: ${0##*/} [DIR]
+    exit_code=$1
+    # if argument was non-zero, pipe it to STDERR instead
+    if [[ $exit_code == 0 ]]; then
+        pipe=$STDOUT
+    else
+        pipe=$STDERR
+    fi
+    cat >&$pipe <<EOF
+Usage: ${0##*/} [options] [FILE]
 Retrieve and submit a Rockbox scrobbler log to Last.fm.
 
-If DIR is present, scan it for logs instead of trying to mount MP3
-player.
+With no arguments, tries to mount a known device (your MP3 player) and submit
+its scrobble log, then archive it. If FILE is provided, try to submit it
+(doesn't have to be .scrobbler.log) and leave it in place.
+
+  Options:
+    -h          display this help message
 EOF
+	exit $exit_code
 }
 
-# Log an event.
+# If verbose, log an event.
 log() {
-    echo "${0##*/}: $1"
+    # if not verbose (i.e. $VERBOSE is empty), do nothing
+    test -z $VERBOSE && return
+    $LOGGER "$LOG_PRE: $1"
 }
 
-# Log an error (but don't exit).
+# Log an error. If given a 2nd argument, exit with it as the exit code.
 error() {
-    log "error: $1"
+    $LOGGER "$LOG_PRE: error: $1" >&$STDERR
+    if [[ $2 ]]; then
+        exit $2
+    fi
 }
 
 # Try to mount device.
 mount_device() {
-    sudo mount "$device" "$mount" -o uid=$UID,gid=$UID,utf8
+    sudo mount "$device" "$mount_dir" -o uid=$(id -u),gid=$(id -g),utf8
 
     # tell how it went
     if [[ $? == 0 ]]; then
         log "mounted succesfully"
     else
-        error "could not mount device $device at mount point $mount"
-        exit 2
+        error "could not mount device $device at mount point $mount_dir" $ERR_DEVICE
     fi
 }
 
 # Try to unmount device.
-unmount_device() {
+umount_device() {
     sudo umount "$device"
 
     # tell how it went
     if [[ $? == 0 ]]; then
         log "unmounted successfully"
     else
-        error "could not unmount $device"
-        exit 3
+        error "could not unmount $device" $ERR_DEVICE
     fi
 }
 
-if [[ $# == 1 ]]; then
-    log "using argument as log directory (not mounting)"
-    log_dir="$1"
-elif [[ $# > 1 ]]; then
-    error "expected 0 or 1 arguments (got $#)"
-    exit 1
-elif [[ ! -L "$device" ]]; then
-    error "device not present"
-    exit 2
-else
-    log "device found, mounting..."
+submit_log() {
+    # copy log to a temporary file with specific scrobble log name
+    local log_dir=$(mktemp -d)
+    local tmp_log="$log_dir/$log_name"
+    cp "$1" "$tmp_log"
+
+    # view (& edit) the log (e.g. to delete entries of podcasts)
+    # not really sure if it's useful
+    #vim "$tmp_log"
+
+    # submit using qtscrob
+    echo qtscrob-cli --file --location "$log_dir"
+
+    # check exit status
+    if [[ $? != 0 ]]; then
+        error "qtscrob-cli failed, exiting" $ERR_SCROBBLER
+    fi
+}
+
+archive_device_log() {
     mount_device
-    mount_dir="$mount"
-    log_dir="$mount_dir"
+
+    local device_log="$mount_dir/$log_name"
+
+    # if no log found, exit early
+    if [[ ! -f "$device_log" ]]; then
+        log "no scrobbler log present"
+        umount_device
+        exit 0
+    fi
+
+    mv "$device_log" "$archive_filename"
+    log "log moved from device -> $archive_filename"
+
+    umount_device
+}
+
+while getopts ":vh" opt; do
+    case $opt in
+        h) usage 0 ;;
+		v) VERBOSE=1 ;;
+		*) error "-$OPTARG is not a valid option" ; usage 1 ;;
+    esac
+done
+
+# check argument count
+if [[ $# > 1 ]]; then
+    error "expected 0 or 1 arguments (got $#)" $ERR_ARGS
 fi
 
-if [[ -f "$log_dir/$logfile" ]]; then
-    # found a scrobbler log
-    if [[ -n "$mount_dir" ]]; then
-        # we mounted, so we make a unique temporary directory for the log, so
-        # that it's not lost if something breaks
-        tmp_logdir="$tmp_dir/$(date +%s)-scrobbler-log"
-        mkdir "$tmp_logdir"
-        mv "$log_dir/$logfile" "$tmp_logdir"
-        log "log moved from device -> $tmp_logdir"
-
-        # unmount ASAP so we can unplug
-        unmount_device
-    else
-        # no temp dirs, keep the log where it is
-        tmp_logdir="$log_dir"
-    fi
-else
-    # no log was present
-    log "no scrobbler log present"
-
-    if [[ -n "$mount_dir" ]]; then
-        # unmount if required
-        unmount_device
-    fi
-
-    # exit without errors
+# if given an argument, submit it
+if [[ $# == 1 ]]; then
+    # been given a file: don't mount, look for a log in it
+	if [[ ! -f "$1" ]]; then
+        error "not a file: $1" $ERR_ARGS
+	fi
+    log "using file as scrobbler log (not mounting)"
+    submit_log "$1"
     exit 0
 fi
 
-# view (& edit) the log (e.g. to delete entries of podcasts)
-# not really sure if it's useful
-#vim "$tmp_logdir/$logfile"
-
-# submit tracks
-# qtscrob takes it upon itself to delete the file itself, the dirty
-# program >:(
-qtscrob-cli --file --location "$tmp_logdir"
-
-if [[ $? != 0 ]]; then
-    error "qtscrob-cli failed, exiting"
-    exit 3
-elif [[ $? == 0 ]] && [[ -n "$mount_dir" ]]; then
-    # safe to force removal of temp dir
-    log "log successfully submitted"
-    log "deleting temporary dir"
-    rm -R "$tmp_logdir"
-else
-    # succeeded, but we didn't mount, so don't delete dir!
-    log "log successfully submitted"
-    log "not deleting given dir -- if you wish to, run:"
-    echo "rm -R $tmp_logdir"
+# else try to mount & submit
+if [[ ! -L "$device" ]]; then
+    error "device not present" $ERR_DEVICE
 fi
+
+log "device found, mounting..."
+archive_device_log
+submit_log "$archive_filename"
