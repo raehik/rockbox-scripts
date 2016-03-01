@@ -97,7 +97,7 @@ submit_log() {
     #vim "$tmp_log"
 
     # submit using qtscrob
-    echo qtscrob-cli --file --location "$log_dir"
+    qtscrob-cli --file --location "$log_dir"
 
     # check exit status
     if [[ $? != 0 ]]; then
