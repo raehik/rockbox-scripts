@@ -88,6 +88,8 @@ umount_device() {
 
 submit_log() {
     # copy log to a temporary file with specific scrobble log name
+    # we don't need to preserve the timestamp because we already moved
+    # the log directly rather than copying & removing
     local log_dir=$(mktemp -d)
     local tmp_log="$log_dir/$log_name"
     cp "$1" "$tmp_log"
@@ -117,7 +119,10 @@ archive_device_log() {
         exit 0
     fi
 
+    # archive & remove exec. bit
     mv "$device_log" "$archive_filename"
+    chmod -x "$archive_filename"
+
     log "log moved from device -> $archive_filename"
 
     umount_device
