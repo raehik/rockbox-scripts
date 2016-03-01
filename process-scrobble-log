@@ -37,9 +37,10 @@ usage() {
 Usage: ${0##*/} [options] [FILE]
 Retrieve and submit a Rockbox scrobbler log to Last.fm.
 
-With no arguments, tries to mount a known device (your MP3 player) and submit
-its scrobble log, then archive it. If FILE is provided, try to submit it
-(doesn't have to be .scrobbler.log) and leave it in place.
+With no arguments, tries to mount a preset device UUID (check the file) and look
+for a scrobble log. If present, the log is archived and submitted. If FILE is
+provided (can be any filename, not just .scrobbler.log), try to submit it and
+leave it in place.
 
   Options:
     -h          display this help message
