@@ -6,6 +6,9 @@
 #       listened to (L). It does not record skipped (S) songs.
 #
 
+_BASHPLATE_DIR="$HOME/.local/share/bashplate"
+source "$_BASHPLATE_DIR/bashplate.sh"
+
 device="/dev/disk/by-uuid/D057-2F0C"
 mount_dir="/mnt/mp3"
 archive_filename="$HOME/media/music-etc/mp3-scrobbles/$(date +%F-%T)-scrobbler-log.txt"
@@ -15,26 +18,12 @@ ERR_ARGS=1
 ERR_DEVICE=2
 ERR_SCROBBLER=3
 
-STDOUT="1"
-STDERR="2"
-FILENAME="${0##*/}"
-LOGGER="echo"
-LOG_PRE="$FILENAME"
-
 # verbosity on by default
 VERBOSE=1
 
 # Print usage and exit depending on given exit code.
-usage() {
-    exit_code=$1
-    # if argument was non-zero, pipe it to STDERR instead
-    if [[ $exit_code == 0 ]]; then
-        pipe=$STDOUT
-    else
-        pipe=$STDERR
-    fi
-    cat >&$pipe <<EOF
-Usage: ${0##*/} [options] [FILE]
+_usage="\
+Usage: $_FILENAME [options] [FILE]
 Retrieve and submit a Rockbox scrobbler log to Last.fm.
 
 With no arguments, tries to mount a preset device UUID (check the file) and look
@@ -43,25 +32,10 @@ provided (can be any filename, not just .scrobbler.log), try to submit it and
 leave it in place.
 
   Options:
-    -h          display this help message
-EOF
-	exit $exit_code
-}
-
-# If verbose, log an event.
-log() {
-    # if not verbose (i.e. $VERBOSE is empty), do nothing
-    test -z $VERBOSE && return
-    $LOGGER "$LOG_PRE: $1"
-}
-
-# Log an error. If given a 2nd argument, exit with it as the exit code.
-error() {
-    $LOGGER "$LOG_PRE: error: $1" >&$STDERR
-    if [[ $2 ]]; then
-        exit $2
-    fi
-}
+    -e, --edit      edit the scrobble log before submitting
+    -v, --verbose   be verbose
+    -h, --help      display this help text and exit\
+"
 
 # Try to mount device.
 mount_device() {
@@ -69,9 +43,9 @@ mount_device() {
 
     # tell how it went
     if [[ $? == 0 ]]; then
-        log "mounted succesfully"
+        _log "mounted succesfully"
     else
-        error "could not mount device $device at mount point $mount_dir" $ERR_DEVICE
+        _err "could not mount device $device at mount point $mount_dir" $ERR_DEVICE
     fi
 }
 
@@ -81,9 +55,9 @@ umount_device() {
 
     # tell how it went
     if [[ $? == 0 ]]; then
-        log "unmounted successfully"
+        _log "unmounted successfully"
     else
-        error "could not unmount $device" $ERR_DEVICE
+        _err "could not unmount $device" $ERR_DEVICE
     fi
 }
 
@@ -104,7 +78,7 @@ submit_log() {
 
     # check exit status
     if [[ $? != 0 ]]; then
-        error "qtscrob-cli failed, exiting" $ERR_SCROBBLER
+        _err "qtscrob-cli failed, exiting" $ERR_SCROBBLER
     fi
 }
 
@@ -115,7 +89,7 @@ archive_device_log() {
 
     # if no log found, exit early
     if [[ ! -f "$device_log" ]]; then
-        log "no scrobbler log present"
+        _log "no scrobbler log present"
         umount_device
         exit 0
     fi
@@ -124,40 +98,59 @@ archive_device_log() {
     mv "$device_log" "$archive_filename"
     chmod -x "$archive_filename"
 
-    log "log moved from device -> $archive_filename"
+    _log "log moved from device -> $archive_filename"
 
     umount_device
 }
 
-while getopts ":vh" opt; do
-    case $opt in
-        h) usage 0 ;;
-		v) VERBOSE=1 ;;
-		*) error "-$OPTARG is not a valid option" ; usage 1 ;;
+edit_log() {
+    _log "opening log in editor..."
+    $file_editor "$1"
+}
+
+while getopts_long :vhe opt \
+    verbose 0 \
+    help 0 \
+    edit 0 \
+    "" "$@"
+do
+    case "$opt" in
+        v|verbose) _VERBOSE=$(($_VERBOSE+1)) ;;
+        h|help) _print_usage 0 ;;
+		:) _err "$OPTLERR" ; _print_usage 1 ;;
+
+        e|edit) edit_log=true ;;
     esac
 done
+shift $((OPTLIND-1))
+
+# set editor to $EDITOR or vim if not present
+file_editor="$EDITOR"
+[[ -z "$file_editor" ]] && file_editor="vim"
 
 # check argument count
 if [[ $# > 1 ]]; then
-    error "expected 0 or 1 arguments (got $#)" $ERR_ARGS
+    _err "expected 0 or 1 arguments (got $#)" $ERR_ARGS
 fi
 
 # if given an argument, submit it
 if [[ $# == 1 ]]; then
     # been given a file: don't mount, look for a log in it
 	if [[ ! -f "$1" ]]; then
-        error "not a file: $1" $ERR_ARGS
+        _err "not a file: $1" $ERR_ARGS
 	fi
-    log "using file as scrobbler log (not mounting)"
+    _log "using file as scrobbler log (not mounting)"
+    [[ $edit_log ]] && edit_log "$1"
     submit_log "$1"
     exit 0
 fi
 
 # else try to mount & submit
 if [[ ! -L "$device" ]]; then
-    error "device not present" $ERR_DEVICE
+    _err "device not present" $ERR_DEVICE
 fi
 
-log "device found, mounting..."
+_log "device found, mounting..."
 archive_device_log
+[[ $edit_log ]] && edit_log "$archive_filename"
 submit_log "$archive_filename"
