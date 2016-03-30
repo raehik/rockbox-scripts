@@ -19,7 +19,7 @@ ERR_DEVICE=2
 ERR_SCROBBLER=3
 
 # verbosity on by default
-VERBOSE=1
+_VERBOSE=1
 
 # Print usage and exit depending on given exit code.
 _usage="\
