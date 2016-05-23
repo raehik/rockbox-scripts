@@ -68,7 +68,7 @@ done
 rocklist.py "$tmp_dir"/*
 
 mount_device
-rsync -av --modify-window=1 "$tmp_dir"/* "$mount/$playlists_to"
+rsync -av --modify-window=10 "$tmp_dir"/* "$mount/$playlists_to"
 unmount_device
 
 rm -r "$tmp_dir"
