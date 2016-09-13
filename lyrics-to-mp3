@@ -3,7 +3,7 @@
 # ayy lmao
 #
 
-device="/dev/disk/by-uuid/2FB2-3CE7"
+device="/dev/disk/by-label/USD-64G-1"
 mount="/mnt/mp3-sd"
 
 lyrics_from="$HOME/.config/mpd/lyrics"

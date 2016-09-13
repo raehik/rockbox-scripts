@@ -9,7 +9,7 @@
 _BASHPLATE_DIR="$HOME/.local/share/bashplate"
 source "$_BASHPLATE_DIR/bashplate.sh"
 
-device="/dev/disk/by-uuid/D057-2F0C"
+device="/dev/disk/by-label/CLIPP-8G-1"
 mount_dir="/mnt/mp3"
 archive_filename="$HOME/media/music-etc/mp3-scrobbles/$(date +%F-%T)-scrobbler-log.txt"
 log_name=".scrobbler.log"
