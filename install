@@ -4,13 +4,15 @@
 #
 
 install_dir="$HOME/bin"
-from_dir="${PWD}"
+from_relative_dir="proj/coding/programs/rockbox-scripts"
 
 for script in *; do
     case "$script" in
         "${0##*/}") continue ;;
         "LICENSE") continue ;;
+        "README.md") continue ;;
     esac
 
-    ln -s "$from_dir/$script" "$install_dir"
+    #rm -v "$install_dir/$script"
+    ln -vs "../$from_relative_dir/$script" "$install_dir"
 done
