@@ -9,27 +9,28 @@
 _BASHPLATE_DIR="$HOME/.local/share/bashplate"
 source "$_BASHPLATE_DIR/bashplate.sh"
 
-device="/dev/disk/by-label/CLIPP-8G-1"
-mount_dir="/mnt/mp3"
+mount_dir="/mnt-set/mp3-sys"
 archive_filename="$HOME/media/music-etc/mp3-scrobbles/$(date +%F-%T)-scrobbler-log.txt"
 log_name=".scrobbler.log"
 
-ERR_ARGS=1
-ERR_DEVICE=2
-ERR_SCROBBLER=3
+ERR_ARGS=2
+ERR_DEVICE=3
+ERR_SCROBBLER=4
 
 # verbosity on by default
 _VERBOSE=1
 
-# Print usage and exit depending on given exit code.
 _usage="\
 Usage: $_FILENAME [options] [FILE]
 Retrieve and submit a Rockbox scrobbler log to Last.fm.
 
-With no arguments, tries to mount a preset device UUID (check the file) and look
-for a scrobble log. If present, the log is archived and submitted. If FILE is
-provided (can be any filename, not just .scrobbler.log), try to submit it and
-leave it in place.
+With no arguments, try to mount a preset directory, expecting that we have
+permissions (e.g. an entry in /etc/fstab with the user option) and look for a
+scrobble log (must be named .scrobbler.log). If present, archive and submit the
+log.
+
+If FILE is provided (any filename, not just .scrobbler.log), try to submit it
+and leave it in place.
 
   Options:
     -e, --edit      edit the scrobble log before submitting
@@ -37,29 +38,32 @@ leave it in place.
     -h, --help      display this help text and exit\
 "
 
+## Mount/umount functions {{{
 # Try to mount device.
 mount_device() {
-    sudo mount "$device" "$mount_dir" -o uid=$(id -u),gid=$(id -g),utf8
+    _log "trying to mount ${mount_dir}..."
+    mount "$mount_dir"
 
     # tell how it went
     if [[ $? == 0 ]]; then
         _log "mounted succesfully"
     else
-        _err "could not mount device $device at mount point $mount_dir" $ERR_DEVICE
+        _err "could not mount directory ${mount_dir}: is the device plugged in?" $ERR_DEVICE
     fi
 }
 
 # Try to unmount device.
 umount_device() {
-    sudo umount "$device"
+    umount "$mount_dir"
 
     # tell how it went
     if [[ $? == 0 ]]; then
         _log "unmounted successfully"
     else
-        _err "could not unmount $device" $ERR_DEVICE
+        _err "could not unmount directory $mount_dir" $ERR_DEVICE
     fi
 }
+## }}}
 
 submit_log() {
     # copy log to a temporary file with specific scrobble log name
@@ -146,11 +150,6 @@ if [[ $# == 1 ]]; then
 fi
 
 # else try to mount & submit
-if [[ ! -L "$device" ]]; then
-    _err "device not present" $ERR_DEVICE
-fi
-
-_log "device found, mounting..."
 archive_device_log
 [[ $edit_log ]] && edit_log "$archive_filename"
 submit_log "$archive_filename"

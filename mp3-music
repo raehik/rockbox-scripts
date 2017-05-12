@@ -3,93 +3,67 @@
 # Copy music to MP3 player.
 #
 
-STDOUT="1"
-STDERR="2"
+_BASHPLATE_DIR="$HOME/.local/share/bashplate"
+source "$_BASHPLATE_DIR/bashplate.sh"
 
-FILENAME="${0##*/}"
-
-LOGGER="echo"
-LOG_PRE="$FILENAME"
-
-device="/dev/disk/by-label/USD-64G-1"
-mount="/mnt/mp3-sd"
+mount_dir="/mnt-set/mp3-sd"
 
 music_from="$HOME/media/music"
 music_to=""
 
-# Print usage and exit depending on given exit code.
-usage() {
-    exit_code=$1
-    # if argument was non-zero, pipe it to STDERR instead
-    if [[ $exit_code == 0 ]]; then
-        pipe=$STDOUT
-    else
-        pipe=$STDERR
-    fi
-    cat >&$pipe <<EOF
-Usage: $FILENAME [options]
+ERR_DEVICE=2
+
+_VERBOSE=1
+
+_usage="\
+Usage: $_FILENAME [options]
 Copy music to MP3 player.
 
   Options:
-    -v          be verbose
-    -h          display this help message
+    -v, --verbose   be verbose
+    -h, --help      display this help text and exit\
+"
 
-Notes about default options/arguments, things you might wanna watch out
-for, etc.
-EOF
-    exit $exit_code
-}
-
-# If verbose, log an event.
-log() {
-    # if not verbose (i.e. $VERBOSE is empty), do nothing
-    test -z $VERBOSE && return
-    $LOGGER "$LOG_PRE: $1"
-}
-
-# Log an error. Doesn't exit.
-error() {
-    $LOGGER "$LOG_PRE: error: $1"
-}
-
+## Mount/umount functions {{{
 # Try to mount device.
 mount_device() {
-    log "mounting device $device..."
-    sudo mount "$device" "$mount" -o uid=$UID,gid=$UID,utf8
+    _log "trying to mount ${mount_dir}..."
+    mount "$mount_dir"
 
     # tell how it went
     if [[ $? == 0 ]]; then
-        log "mounted succesfully"
+        _log "mounted succesfully"
     else
-        error "could not mount device $device at mount point $mount"
-        exit 2
+        _err "could not mount directory ${mount_dir}: is the device plugged in?" $ERR_DEVICE
     fi
 }
 
 # Try to unmount device.
-unmount_device() {
-    log "unmounting device $device..."
-    sudo umount "$device"
+umount_device() {
+    umount "$mount_dir"
 
     # tell how it went
     if [[ $? == 0 ]]; then
-        log "unmounted successfully"
+        _log "unmounted successfully"
     else
-        error "could not unmount $device"
-        exit 3
+        _err "could not unmount directory $mount_dir" $ERR_DEVICE
     fi
 }
+## }}}
 
-while getopts ":vh" opt; do
-    case $opt in
-        h) usage 0 ;;
-        v) VERBOSE=1 ;;
-        *) error "-$OPTARG is not a valid option" ; usage 1 ;;
+while getopts_long :vh opt \
+    verbose 0 \
+    help 0 \
+    "" "$@"
+do
+    case "$opt" in
+        v|verbose) _VERBOSE=$(($_VERBOSE+1)) ;;
+        h|help) _print_usage 0 ;;
+		:) _err "$OPTLERR" ; _print_usage 1 ;;
     esac
 done
-
-
+shift $((OPTLIND-1))
 
 mount_device
-rsync -av --modify-window=10 "$music_from" "$mount/$music_to"
+rsync -av --modify-window=10 "$music_from" "$mount_dir/$music_to"
 unmount_device
