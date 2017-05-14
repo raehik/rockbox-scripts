@@ -8,7 +8,7 @@ source "$_BASHPLATE_DIR/bashplate.sh"
 
 mount_dir="/mnt-set/mp3-sd"
 
-lyrics_from="$HOME/.config/mpd/lyrics"
+lyrics_from="$HOME/media/music-etc/lyrics"
 lyrics_to="lyrics"
 
 ERR_DEVICE=2
@@ -82,8 +82,8 @@ for file in $tmp_dir/*; do
     #fi
 done
 
-rm -rf "$mount/$lyrics_to"/*
-rsync -av --modify-window=10 "$tmp_dir"/* "$mount/$lyrics_to"
+rm -rf "$mount_dir/$lyrics_to"/*
+rsync -av --modify-window=10 "$tmp_dir"/* "$mount_dir/$lyrics_to"
 
 umount_device
 
