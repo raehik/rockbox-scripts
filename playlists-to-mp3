@@ -8,7 +8,7 @@ source "$_BASHPLATE_DIR/bashplate.sh"
 
 mount_dir="/mnt-set/mp3-sd"
 
-playlists_from="$HOME/.config/mpd/playlists"
+playlists_from="$HOME/media/music-etc/playlists"
 playlists_to="playlists"
 
 ERR_DEVICE=2
@@ -67,7 +67,7 @@ done
 rocklist.py "$tmp_dir"/*
 
 mount_device
-rsync -av --modify-window=10 "$tmp_dir"/* "$mount/$playlists_to"
-unmount_device
+rsync -av --modify-window=10 "$tmp_dir"/* "$mount_dir/$playlists_to"
+umount_device
 
 rm -r "$tmp_dir"
